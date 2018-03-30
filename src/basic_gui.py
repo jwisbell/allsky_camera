@@ -13,7 +13,7 @@ def rawFits(filename):
     f = fits.open(filename)
     h = f[0].header
     d = f[0].data
-    f.close
+    f.close()
     return h, d
 
 h, TEST = rawFits('./assets/tesCurrentImage.FIT')
