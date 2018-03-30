@@ -12,7 +12,7 @@ def rawFits(filename):
     f = pyfits.open(filename)
     h = f[0].header
     d = f[0].data
-    f.close
+    f.close()
     return h, d
 
 def dispFits(data, cmap='gray'):
