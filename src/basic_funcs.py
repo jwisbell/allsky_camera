@@ -3,12 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.lines as lines
-import matplotlib.cm as cm
 import astropy.io.fits as pyfits
 from astropy import units as u
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from astropy.time import Time
 from astropy.visualization import astropy_mpl_style
+from scipy.optimize import curve_fit
 
 #plt.style.use(astropy_mpl_style)
 
@@ -49,6 +49,8 @@ def getangle(line2D):
     return angle
 
 
+def fitfunc(x, m, b):
+    return m*x + b
 
 #####################################################################################
 h1 = rawFits(filepath+filename1)[0]
@@ -122,22 +124,39 @@ for string in azimuths:
     string=string[:-4]
     azimuths2.append(float(string))
 
+
+for i in test:
+    #print(getangle(i))
+    pixelazs.append(getangle(i))
+
+pixelalts = np.asarray(pixelalts)
+pixelazs = np.asarray(pixelazs)
+
+
+
 #print(starxy)
 print()
 print('alt (deg): ', altitudes2)
 print('alt (px): ', pixelalts)
 print()
 print('az (deg): ', azimuths2)
-
-
-
-for i in test:
-    #print(getangle(i))
-    pixelazs.append(getangle(i))
-
 print('pixaz (deg): ', pixelazs)
 
 
+
+######################### CURVE FITTING ##########################################
+
+poptAlt, pcovAlt = curve_fit(fitfunc, pixelalts[2:], altitudes2[2:])
+
+poptAz, pcovAz = curve_fit(fitfunc, pixelazs, azimuths2)
+
+
+
+
+
+
+
+############################# PLOTTING ###########################################
 
 plt.imshow(d1, cmap = colmap, origin='lower')
 #plt.show()
@@ -146,12 +165,18 @@ plt.figure(2)
 plt.title('Altitude as a function of pixel distance')
 plt.xlabel('pixels from zenith')
 plt.ylabel('altitude (deg')
+plt.ylim(0, 95)
 plt.scatter(pixelalts, altitudes2)
+plt.plot(pixelalts, fitfunc(pixelalts, *poptAlt), 'r-', ms=8, label='fit: m=%5.3f, b=%5.3f' % tuple(poptAlt))
+plt.legend(loc='best')
 
 plt.figure(3)
 plt.title("Azimuth as a function of angle")
 plt.xlabel('angle from zenith || x-axis (deg)')
 plt.ylabel('azimuth (deg)')
+plt.xlim(0, 360)
 plt.scatter(pixelazs, azimuths2)
+plt.plot(pixelazs, fitfunc(pixelazs, *poptAz), 'r-', ms=8, label='fit: m=%5.3f, b=%5.3f' % tuple(poptAz))
+plt.legend(loc='best')
 
 plt.show()
