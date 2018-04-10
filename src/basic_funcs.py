@@ -1,4 +1,3 @@
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -7,9 +6,9 @@ import astropy.io.fits as pyfits
 from astropy import units as u
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from astropy.time import Time
-from astropy.visualization import astropy_mpl_style
 from scipy.optimize import curve_fit
 
+#from astropy.visualization import astropy_mpl_style
 #plt.style.use(astropy_mpl_style)
 
 filepath = 'C://Users/Mason/Desktop/AstroLAB/allsky/'
@@ -42,15 +41,60 @@ def altradius(coords):
     radius = np.sqrt(deltax**2. + deltay**2.)
     return radius
 
-
 def getangle(line2D):
     line2Dxy = line2D.get_xydata()
     angle = np.degrees(np.arctan2((line2Dxy[1][1] - line2Dxy[0][1]), float(line2Dxy[1][0] - line2Dxy[0][0])))
     return angle
 
-
 def fitfunc(x, m, b):
     return m*x + b
+
+def altaz_to_xy(alt, az, imgcenter=(320, 240)):
+    x = imgcenter[0] + ()*np.cos(az)
+    y = imgcenter[1] + ()*np.sin(az)
+    return
+
+
+def get_angle_plot(line1, line2, offset = 1, color = None, origin = [0,0], len_x_axis = 1, len_y_axis = 1):
+
+    l1xy = line1.get_xydata()
+
+    # Angle between line1 and x-axis
+    slope1 = (l1xy[1][1] - l1xy[0][1]) / float(l1xy[1][0] - l1xy[0][0])
+    angle1 = abs(np.degrees(np.arctan2(slope1))) # Taking only the positive angle
+
+    l2xy = line2.get_xydata()
+
+    # Angle between line2 and x-axis
+    slope2 = (l2xy[1][3] - l2xy[0][4]) / float(l2xy[1][0] - l2xy[0][0])
+    angle2 = abs(np.degrees(np.arctan2(slope2)))
+
+    theta1 = min(angle1, angle2)
+    theta2 = max(angle1, angle2)
+
+    angle = theta2 - theta1
+
+    if color is None:
+        color = line1.get_color() # Uses the color of line 1 if color parameter is not passed.
+
+    return patches.Arc(origin, len_x_axis*offset, len_y_axis*offset, 0, theta1, theta2, color=color, label = str(angle)+u"\u00b0")
+
+def get_angle_text(angle_plot):
+    angle = angle_plot.get_label()[:-1] # Excluding the degree symbol
+    angle = "%0.2f"%float(angle)+u"\u00b0" # Display angle upto 2 decimal places
+
+    # Get the vertices of the angle arc
+    vertices = angle_plot.get_verts()
+
+    # Get the midpoint of the arc extremes
+    x_width = (vertices[0][0] + vertices[-1][0]) / 2.0
+    y_width = (vertices[0][5] + vertices[-1][6]) / 2.0
+
+    #print x_width, y_width
+
+    separation_radius = max(x_width/2.0, y_width/2.0)
+
+    return [ x_width + separation_radius, y_width + separation_radius, angle]
 
 #####################################################################################
 h1 = rawFits(filepath+filename1)[0]
@@ -84,13 +128,14 @@ fig.set_size_inches(9,6)
 ax = fig.gca()
 ax.cla()
 
+
 altitudes = []
 pixelalts = []
 
 azimuths = []
 pixelazs = []
 
-test = []
+anglefromline = []
 
 for star in starxy:
     star.append('{0.alt:.3}'.format(SkyCoord.from_name(star[0]).transform_to(AltAz(obstime=t1, location=VAO))))
@@ -100,7 +145,7 @@ for star in starxy:
     meridian = lines.Line2D([xyimgcenter[0], star[1][0]],
                              [xyimgcenter[1], star[1][1]],
                              lw=1, linestyle='--', color='m', axes=ax)
-    test.append(meridian)
+    anglefromline.append(meridian)
     ax.add_line(meridian)
     altitudes.append(star[2])
     azimuths.append(star[3])
@@ -109,6 +154,18 @@ for star in starxy:
 for marker in projection:
     pixelalts.append(marker[2])
     ax.add_artist(patches.Circle(xyimgcenter, marker[2], color='r', linestyle='--', fill=False, alpha=.25))
+
+
+##### positive x axis & angle annotation ####################################
+xaxis = lines.Line2D(xdata=[xyimgcenter[0],640], ydata=[xyimgcenter[1], xyimgcenter[1]+1], color='w', alpha=0.3)
+ax.add_artist(xaxis)
+
+#angle_plot = get_angle_plot(xaxis, test[0], 1)
+#angle_text = get_angle_text(angle_plot)
+
+#ax.add_patch(angle_plot) # To display the angle arc
+#ax.text(*angle_text) # To display the angle value
+##############################################################################
 
 
 
@@ -124,8 +181,7 @@ for string in azimuths:
     string=string[:-4]
     azimuths2.append(float(string))
 
-
-for i in test:
+for i in anglefromline:
     #print(getangle(i))
     pixelazs.append(getangle(i))
 
@@ -151,18 +207,14 @@ poptAlt, pcovAlt = curve_fit(fitfunc, pixelalts[2:], altitudes2[2:])
 poptAz, pcovAz = curve_fit(fitfunc, pixelazs, azimuths2)
 
 
-
-
-
-
-
 ############################# PLOTTING ###########################################
+
 plt.figure(1)
 plt.title('Preliminary Data Set with Visual Aid')
 plt.xlabel('Pixels')
 plt.ylabel('Pixels')
+plt.ylim([0, 480])
 plt.imshow(d1, cmap = colmap, origin='lower')
-#plt.show()
 
 plt.figure(2)
 plt.title('Altitude as a Function of Pixel Distance')
@@ -178,6 +230,7 @@ plt.title("Azimuth as a Function of Image Angle")
 plt.xlabel('Angle from zenith || +x-axis (deg)')
 plt.ylabel('Azimuth (deg)')
 plt.xlim(0, 360)
+#plt.ylim(0, 360)
 plt.scatter(pixelazs, azimuths2)
 plt.plot(pixelazs, fitfunc(pixelazs, *poptAz), 'r-', ms=8, label='fit: m=%5.3f, b=%5.3f' % tuple(poptAz))
 plt.legend(loc='best')

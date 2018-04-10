@@ -23,7 +23,7 @@ def image_stack(im_list,verbose=False):
 		for i in im_list[1:]:
 			total += i
 	except:
-		print 'ERROR: You did not provide enough images to stack!'
+		print('ERROR: You did not provide enough images to stack!')
 	if verbose:
 		fig = plt.figure()
 		plt.imshow(total, cmap='gray',origin='lower',interpolate='none')
@@ -53,7 +53,7 @@ def sobel(im,verbose=False):
 	new = np.copy(G)
 	new[G > 10] = 10
 	num_edges = len(new[new > 0.5])
-	print num_edges/(640*480.) * 100, '% Edges'
+	print(num_edges/(640*480.) * 100, '% Edges')
 
 	if verbose:
 		#show the detected edges
@@ -73,6 +73,6 @@ def sobel(im,verbose=False):
 
 if __name__ == '__main__':
 	h, TEST = rawFits('./assets/tesCurrentImage.FIT')
-	h,TEST = rawFits('./assets/031854.FIT')
+	h,TEST = rawFits('./assets/samenight1.FIT')
 	im = -1*np.log(TEST)
 	sobel(im,verbose=True)
