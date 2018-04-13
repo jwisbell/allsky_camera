@@ -49,52 +49,10 @@ def getangle(line2D):
 def fitfunc(x, m, b):
     return m*x + b
 
-def altaz_to_xy(alt, az, imgcenter=(320, 240)):
-    x = imgcenter[0] + ()*np.cos(az)
-    y = imgcenter[1] + ()*np.sin(az)
-    return
-
-
-def get_angle_plot(line1, line2, offset = 1, color = None, origin = [0,0], len_x_axis = 1, len_y_axis = 1):
-
-    l1xy = line1.get_xydata()
-
-    # Angle between line1 and x-axis
-    slope1 = (l1xy[1][1] - l1xy[0][1]) / float(l1xy[1][0] - l1xy[0][0])
-    angle1 = abs(np.degrees(np.arctan2(slope1))) # Taking only the positive angle
-
-    l2xy = line2.get_xydata()
-
-    # Angle between line2 and x-axis
-    slope2 = (l2xy[1][3] - l2xy[0][4]) / float(l2xy[1][0] - l2xy[0][0])
-    angle2 = abs(np.degrees(np.arctan2(slope2)))
-
-    theta1 = min(angle1, angle2)
-    theta2 = max(angle1, angle2)
-
-    angle = theta2 - theta1
-
-    if color is None:
-        color = line1.get_color() # Uses the color of line 1 if color parameter is not passed.
-
-    return patches.Arc(origin, len_x_axis*offset, len_y_axis*offset, 0, theta1, theta2, color=color, label = str(angle)+u"\u00b0")
-
-def get_angle_text(angle_plot):
-    angle = angle_plot.get_label()[:-1] # Excluding the degree symbol
-    angle = "%0.2f"%float(angle)+u"\u00b0" # Display angle upto 2 decimal places
-
-    # Get the vertices of the angle arc
-    vertices = angle_plot.get_verts()
-
-    # Get the midpoint of the arc extremes
-    x_width = (vertices[0][0] + vertices[-1][0]) / 2.0
-    y_width = (vertices[0][5] + vertices[-1][6]) / 2.0
-
-    #print x_width, y_width
-
-    separation_radius = max(x_width/2.0, y_width/2.0)
-
-    return [ x_width + separation_radius, y_width + separation_radius, angle]
+def altaz_to_xy(alt, az, imgcenter=(320., 240.), pxpdeg=3., b=0., az_rot = 0.):    #pxperdeg found from altitude fitting, angleoffset from az fit (b/w x-axis and NORTH)
+    x_star = imgcenter[0] + ((90. - alt)*pxpdeg + b)*np.cos(np.deg2rad((az + az_rot)*0.96))
+    y_star = imgcenter[1] + ((90. - alt)*pxpdeg + b)*np.sin(np.deg2rad((az + az_rot)*0.96))
+    return x_star, y_star
 
 #####################################################################################
 h1 = rawFits(filepath+filename1)[0]
@@ -187,6 +145,8 @@ for i in anglefromline:
 
 pixelalts = np.asarray(pixelalts)
 pixelazs = np.asarray(pixelazs)
+altitudes2 = np.asarray(altitudes2)
+azimuths2 = np.asarray(azimuths2)
 
 
 
@@ -202,9 +162,28 @@ print('pixaz (deg): ', pixelazs)
 
 ######################### CURVE FITTING ##########################################
 
-poptAlt, pcovAlt = curve_fit(fitfunc, pixelalts[2:], altitudes2[2:])
+poptAlt, pcovAlt = curve_fit(fitfunc, altitudes2[2:],  pixelalts[2:],)
 
-poptAz, pcovAz = curve_fit(fitfunc, pixelazs, azimuths2)
+poptAz, pcovAz = curve_fit(fitfunc, azimuths2, pixelazs,)
+
+print(poptAlt, pcovAlt)
+print(poptAz, pcovAz)
+print()
+
+
+#### TEST
+forwardDATA = []
+testparam = -15.
+
+for i in range(2,10,1):
+
+    tau = altaz_to_xy(alt=altitudes2[i], az=azimuths2[i], imgcenter=xyimgcenter, pxpdeg=np.abs(poptAlt[0]), b=-9.0, az_rot=np.abs(poptAz[1]+testparam))
+    print(tau)
+    forwardDATA.append(tau)
+    ax.add_artist(patches.Circle(tau, 2, color='c', linestyle='-', fill=True))
+
+
+####
 
 
 ############################# PLOTTING ###########################################
@@ -213,26 +192,26 @@ plt.figure(1)
 plt.title('Preliminary Data Set with Visual Aid')
 plt.xlabel('Pixels')
 plt.ylabel('Pixels')
-plt.ylim([0, 480])
+#plt.ylim([0, 480])
 plt.imshow(d1, cmap = colmap, origin='lower')
 
 plt.figure(2)
 plt.title('Altitude as a Function of Pixel Distance')
-plt.xlabel('Pixels from zenith')
-plt.ylabel('Altitude (deg)')
-plt.ylim(0, 95)
-plt.scatter(pixelalts[2:], altitudes2[2:])
-plt.plot(pixelalts[2:], fitfunc(pixelalts[2:], *poptAlt), 'r-', ms=8, label='fit: m=%5.3f, b=%5.3f' % tuple(poptAlt))
+plt.ylabel('Pixels from zenith')
+plt.xlabel('Altitude (deg)')
+#plt.ylim(0, 95)
+plt.scatter(altitudes2[2:], pixelalts[2:],)
+plt.plot(altitudes2[2:], fitfunc(altitudes2[2:], *poptAlt), 'r-', ms=8, label='fit: m=%5.3f, b=%5.3f' % tuple(poptAlt))
 plt.legend(loc='best')
 
 plt.figure(3)
 plt.title("Azimuth as a Function of Image Angle")
-plt.xlabel('Angle from zenith || +x-axis (deg)')
-plt.ylabel('Azimuth (deg)')
-plt.xlim(0, 360)
+plt.ylabel('Angle from zenith || +x-axis (deg)')
+plt.xlabel('Azimuth (deg)')
+#plt.xlim(0, 360)
 #plt.ylim(0, 360)
-plt.scatter(pixelazs, azimuths2)
-plt.plot(pixelazs, fitfunc(pixelazs, *poptAz), 'r-', ms=8, label='fit: m=%5.3f, b=%5.3f' % tuple(poptAz))
+plt.scatter(azimuths2, pixelazs)
+plt.plot(azimuths2, fitfunc(azimuths2, *poptAz), 'r-', ms=8, label='fit: m=%5.3f, b=%5.3f' % tuple(poptAz))
 plt.legend(loc='best')
 
 plt.show()
