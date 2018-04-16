@@ -18,6 +18,7 @@ filename1 = 'testimg.fit'
 VAO = EarthLocation(lat=41.6611*u.deg, lon=-91.5302*u.deg, height=225*u.m)
 xyimgcenter = (320, 240)
 
+
 def rawFits(filename):
     f = pyfits.open(filename)
     h = f[0].header
@@ -49,9 +50,9 @@ def getangle(line2D):
 def fitfunc(x, m, b):
     return m*x + b
 
-def altaz_to_xy(alt, az, imgcenter=(320., 240.), pxpdeg=3., b=0., az_rot = 0.):    #pxperdeg found from altitude fitting, angleoffset from az fit (b/w x-axis and NORTH)
-    x_star = imgcenter[0] + ((90. - alt)*pxpdeg + b)*np.cos(np.deg2rad((az + az_rot)*0.96))
-    y_star = imgcenter[1] + ((90. - alt)*pxpdeg + b)*np.sin(np.deg2rad((az + az_rot)*0.96))
+def altaz_to_xy(alt, az, imgcenter=(320., 240.), pxpdeg=-3.3, b=0., az_rot = 0.):    #pxperdeg found from altitude fitting, angleoffset from az fit (b/w x-axis and NORTH)
+    x_star = imgcenter[0] + ((90. - alt)*pxpdeg + b)*np.cos(np.deg2rad((az + az_rot)*1.00))
+    y_star = imgcenter[1] + ((90. - alt)*pxpdeg + b)*np.sin(np.deg2rad((az + az_rot)*1.00))
     return x_star, y_star
 
 #####################################################################################
@@ -61,8 +62,8 @@ t1 = getTime(h1)
 print(t1)
 
 
-starxy = [ ['rigel', (518, 337)],
-           ['sirius', (465, 421)],
+starxy = [ ['sirius', (518, 337)],
+           ['rigel', (465, 421)],
            ['procyon', (450, 283)],
            ['betelgeuse', (423, 374)],
            ['polaris', (167, 251)],
@@ -75,9 +76,7 @@ starxy = [ ['rigel', (518, 337)],
 
 d1 = np.flipud(d1)
 
-projection = [ ['horizon', xyimgcenter, 296],
-               ['zenith', xyimgcenter, 2]
-               ]
+projection = []
 
 
 colmap=plt.get_cmap('gray')
@@ -85,6 +84,7 @@ fig = plt.gcf()
 fig.set_size_inches(9,6)
 ax = fig.gca()
 ax.cla()
+ax.set_clip_on(True)
 
 
 altitudes = []
@@ -115,6 +115,8 @@ for marker in projection:
 
 
 ##### positive x axis & angle annotation ####################################
+ax.add_artist(patches.Circle(xyimgcenter, 2, color='y', linestyle='--', fill=False, alpha=.8))    #Zenith
+ax.add_artist(patches.Circle(xyimgcenter, 307.36, color='y', linestyle='--', fill=False, alpha=.8))   #Horizon
 xaxis = lines.Line2D(xdata=[xyimgcenter[0],640], ydata=[xyimgcenter[1], xyimgcenter[1]+1], color='w', alpha=0.3)
 ax.add_artist(xaxis)
 
@@ -128,7 +130,7 @@ ax.add_artist(xaxis)
 
 
 #print(projection)
-altitudes2 = [19.65, 90.0]
+altitudes2 = []
 azimuths2 = []
 
 for string in altitudes:
@@ -162,9 +164,9 @@ print('pixaz (deg): ', pixelazs)
 
 ######################### CURVE FITTING ##########################################
 
-poptAlt, pcovAlt = curve_fit(fitfunc, altitudes2[2:],  pixelalts[2:],)
+poptAlt, pcovAlt = curve_fit(fitfunc, altitudes2,  pixelalts)
 
-poptAz, pcovAz = curve_fit(fitfunc, azimuths2, pixelazs,)
+poptAz, pcovAz = curve_fit(fitfunc, azimuths2, pixelazs)
 
 print(poptAlt, pcovAlt)
 print(poptAz, pcovAz)
@@ -172,18 +174,20 @@ print()
 
 
 #### TEST
+compDATA = []
 forwardDATA = []
-testparam = -15.
+testparam = 5.
 
-for i in range(2,10,1):
+for i in range(0,10,1):
 
-    tau = altaz_to_xy(alt=altitudes2[i], az=azimuths2[i], imgcenter=xyimgcenter, pxpdeg=np.abs(poptAlt[0]), b=-9.0, az_rot=np.abs(poptAz[1]+testparam))
-    print(tau)
+    tau = altaz_to_xy(alt=altitudes2[i], az=azimuths2[i], imgcenter=xyimgcenter, pxpdeg=np.abs(poptAlt[0]), b=5.0, az_rot=np.abs(poptAz[1]+testparam))
+    #print(tau)
     forwardDATA.append(tau)
+    compDATA.append(starxy[i][1])
     ax.add_artist(patches.Circle(tau, 2, color='c', linestyle='-', fill=True))
 
-
-####
+forwardDATA = np.asarray(forwardDATA)
+compDATA = np.asarray(compDATA)
 
 
 ############################# PLOTTING ###########################################
@@ -200,8 +204,8 @@ plt.title('Altitude as a Function of Pixel Distance')
 plt.ylabel('Pixels from zenith')
 plt.xlabel('Altitude (deg)')
 #plt.ylim(0, 95)
-plt.scatter(altitudes2[2:], pixelalts[2:],)
-plt.plot(altitudes2[2:], fitfunc(altitudes2[2:], *poptAlt), 'r-', ms=8, label='fit: m=%5.3f, b=%5.3f' % tuple(poptAlt))
+plt.scatter(altitudes2, pixelalts,)
+plt.plot(altitudes2, fitfunc(altitudes2, *poptAlt), 'r-', ms=8, label='fit: m=%5.3f, b=%5.3f' % tuple(poptAlt))
 plt.legend(loc='best')
 
 plt.figure(3)
@@ -212,6 +216,14 @@ plt.xlabel('Azimuth (deg)')
 #plt.ylim(0, 360)
 plt.scatter(azimuths2, pixelazs)
 plt.plot(azimuths2, fitfunc(azimuths2, *poptAz), 'r-', ms=8, label='fit: m=%5.3f, b=%5.3f' % tuple(poptAz))
+plt.legend(loc='best')
+
+plt.figure(4)
+plt.title('Image XY as a Function of AltAz Coords')
+plt.xlabel('AltAz Coords')
+plt.ylabel('Image Pixel Coords')
+plt.scatter(forwardDATA[:,0], forwardDATA[:,1], label='tau')
+plt.scatter(compDATA[:,0], compDATA[:,1], label='true')
 plt.legend(loc='best')
 
 plt.show()
