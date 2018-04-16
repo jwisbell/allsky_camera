@@ -15,8 +15,8 @@ filepath = 'C://Users/Mason/Desktop/AstroLAB/allsky/'
 #filename1 = 'tesCurrentImage.fit'
 filename1 = 'testimg.fit'
 
-VAO = EarthLocation(lat=41.6611*u.deg, lon=-91.5302*u.deg, height=225*u.m)
-xyimgcenter = (320, 240)
+VAO = EarthLocation(lat=41.6611*u.deg, lon=-91.5302*u.deg, height=200*u.m)
+xyimgcenter = (324, 240)
 
 
 def rawFits(filename):
@@ -66,7 +66,7 @@ starxy = [ ['sirius', (518, 337)],
            ['rigel', (465, 421)],
            ['procyon', (450, 283)],
            ['betelgeuse', (423, 374)],
-           ['polaris', (167, 251)],
+           ['polaris', (166, 250)],
            ['capella', (284, 349)],
            ['castor', (359, 280)],
            ['pollux', (373, 273)],
@@ -176,11 +176,11 @@ print()
 #### TEST
 compDATA = []
 forwardDATA = []
-testparam = 5.
+testparam = 2.
 
 for i in range(0,10,1):
 
-    tau = altaz_to_xy(alt=altitudes2[i], az=azimuths2[i], imgcenter=xyimgcenter, pxpdeg=np.abs(poptAlt[0]), b=5.0, az_rot=np.abs(poptAz[1]+testparam))
+    tau = altaz_to_xy(alt=altitudes2[i], az=azimuths2[i], imgcenter=xyimgcenter, pxpdeg=np.abs(poptAlt[0]), b=3.0, az_rot=np.abs(poptAz[1]+testparam))
     #print(tau)
     forwardDATA.append(tau)
     compDATA.append(starxy[i][1])
@@ -222,8 +222,9 @@ plt.figure(4)
 plt.title('Image XY as a Function of AltAz Coords')
 plt.xlabel('AltAz Coords')
 plt.ylabel('Image Pixel Coords')
-plt.scatter(forwardDATA[:,0], forwardDATA[:,1], label='tau')
+plt.scatter(xyimgcenter[0], xyimgcenter[1])
 plt.scatter(compDATA[:,0], compDATA[:,1], label='true')
+plt.scatter(forwardDATA[:,0], forwardDATA[:,1], label='tau')
 plt.legend(loc='best')
 
 plt.show()
