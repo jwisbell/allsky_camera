@@ -16,7 +16,8 @@ filepath = 'C://Users/Mason/Desktop/AstroLAB/allsky/'
 filename1 = 'testimg.fit'
 
 VAO = EarthLocation(lat=41.6611*u.deg, lon=-91.5302*u.deg, height=200*u.m)
-xyimgcenter = (324, 240)
+
+xyimgcenter = (326, 240)
 
 
 def rawFits(filename):
@@ -37,10 +38,10 @@ def getTime(header):
     return t
 
 def altradius(coords):
-    deltax = abs(xyimgcenter[0] - coords[0])
-    deltay = abs(xyimgcenter[1] - coords[1])
-    radius = np.sqrt(deltax**2. + deltay**2.)
-    return radius
+    delta_x = abs(xyimgcenter[0] - coords[0])
+    delta_y = abs(xyimgcenter[1] - coords[1])
+    radius = np.sqrt(delta_x**2. + delta_y**2.)
+    return radius #magnitude in pixels
 
 def getangle(line2D):
     line2Dxy = line2D.get_xydata()
@@ -176,7 +177,7 @@ print()
 #### TEST
 compDATA = []
 forwardDATA = []
-testparam = 2.
+testparam = 3
 
 for i in range(0,10,1):
 
