@@ -158,12 +158,12 @@ def radec_grid(im,time, spacing=10,lat = 41.661):
 	
 
 
+if __name__ == "__main__":
+	im = np.zeros( (480,640) )
 
-im = np.zeros( (480,640) )
 
-
-altaz_grid(im)
-radec_grid(im, '2018-03-26T08:18:32.410')
+	altaz_grid(im)
+	radec_grid(im, '2018-03-26T08:18:32.410')
 
 
 
