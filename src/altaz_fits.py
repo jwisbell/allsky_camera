@@ -13,12 +13,14 @@ from scipy.optimize import curve_fit
 
 def raw_fits(filename):
     #returns FITS header and data
-    #TODO: check for .fits filetype
-    f = pyfits.open(filename)
-    h = f[0].header
-    d = f[0].data
-    f.close()
-    return h, d
+    if filename.lower().endswith(('.fits', '.fit')):
+        f = pyfits.open(filename)
+        h = f[0].header
+        d = f[0].data
+        f.close()
+        return h, d
+    else:
+        raise Exception('Invalid Filetype')
 
 def get_time(header):
     #returns utc for when fits image was taken
