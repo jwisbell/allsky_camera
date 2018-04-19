@@ -55,7 +55,9 @@ def utc_to_lst(time,hours=False):
 	return gmst - lon
 
 
-def radec_to_altaz(ra,dec,time):
+def radec_to_altaz(ra,dec,time,debug=False):
+	if debug:
+		print ra, dec,time
 	#NOTE -- numpy trig is all in radians
 	RA = np.radians(ra)
 	DEC = np.radians(dec)
@@ -67,6 +69,8 @@ def radec_to_altaz(ra,dec,time):
 
 	#azumith
 	az = np.arccos(  (np.sin(DEC) - np.sin(LAT)*np.sin(alt))/(np.cos(LAT) *np.cos(alt) ) )
+	if debug:
+		print alt, az
 
 	return np.degrees(alt), np.degrees(az)
 
@@ -86,48 +90,84 @@ def altaz_to_radec(alt,az,time):
 	return np.degrees(RA), np.degrees(DEC)
 
 
-def altaz_to_xy(alt, az):
-	A = -0.32; B = 0#640/2
-	C = 0.8; D = 0
-	x = alt/A - B 
-	y = az/C - D
-	return x,y
+def altaz_to_xy(alt, az, imgcenter=(320., 240.), pxpdeg=-3.3, b=0., az_rot = 8.):
+    #generalized transformation from Alt/Az (in degrees) to image x, y (in pixels)
+    #pxperdeg found from altitude fitting, angleoffset from az fit (b/w x-axis and NORTH)
+    x_star = imgcenter[0] + ((90. - alt)*pxpdeg + b)*np.cos(np.deg2rad((az + az_rot)*1.00)) + 10
+    y_star = imgcenter[1] + ((90. - alt)*pxpdeg + b)*np.sin(np.deg2rad((az + az_rot)*1.00)) + 35
+    return x_star, y_star
+
+
+def centroid(image, x,y,s, verbose=False):
+	#calculate the centroid of the peak within a radius
+	x = int(x); y = int(y); s = int(s)
+	print x, y, s
+	region = image[x-s/2:x+s/2, y-s/2:y+s/2]
+	I = []
+	J = []
+	for i in range(s):
+		ival = np.sum(region[i,:])
+		jval = np.sum(region[:,i])
+		I.append(ival)
+		J.append(jval)
+	mean_i = np.sum(I) / s
+	mean_j = np.sum(J) / s
+	I = np.array(I)
+	J = np.array(J)
+	diff_i = (I - mean_i)[ (I - mean_i) > 0]
+	diff_j = (J - mean_j)[ (J - mean_j) > 0]
+	xvals = np.arange(0,s)[ (I - mean_i) > 0]
+	yvals = np.arange(0,s)[ (J - mean_j) > 0]
+	yc = np.sum( diff_i*xvals) / np.sum(diff_i) 
+	xc = np.sum( diff_j*yvals) / np.sum(diff_j) 
+
+	if verbose:
+		print(xc,yc)
+		fig = plt.figure()
+		plt.imshow(region,cmap='viridis',origin='lower')
+		plt.scatter(xc,yc)
+		plt.show()
+
+	return xc+y-s/2,yc+x-s/2
 
 
 
-
-def altaz_grid(im, spacing=10):
+def altaz_grid(im, spacing=10, verbose=False):
 	#spacing in degrees
 	north = 8
-	alts = np.arange(0,100,spacing)
-	azs = np.arange(0+north,360+north,spacing)
+	alts = np.linspace(0,100,spacing)
+	azs = np.zeros(alts.shape)#np.linspace(0+north,360+north,spacing)
 
 	#need a circle at each alt, and radial lines at each az
 	x,y = altaz_to_xy(alts, azs)
+	print x, y
 
 	circs = []
-	for radius in x:
-		c = Circle( (640/2,480/2),radius=radius,fc='none',ec='magenta')
+	for radius in np.sqrt( np.power(x-320,2.) + np.power(y-240,2.)):
+		c = Circle( (480/2,640/2),radius=radius,fc='none',ec='gray',alpha=0.2)
 		circs.append(c)
 
 	#make the lines
-	length=640/1.5
+	length=np.max( np.sqrt( np.power(x-320,2.) + np.power(y-240,2.)) )
 	lines = []
+	azs = np.arange(0+north,360+north,15)
 	for az in azs:
-		lines.append(  ([640/2, 640/2+length*np.cos(np.radians(az))], [480/2,480/2+length*np.sin(np.radians(az))]) )
+		lines.append(  ([480/2, 480/2+length*np.cos(np.radians(az))], [640/2,640/2+length*np.sin(np.radians(az))]) )
 
 	#do the plotting
-	fig,ax = plt.subplots()
-	ax.imshow(im, origin='lower')
-	for c in circs:
-		ax.add_patch(c)
+	if verbose:
+		fig,ax = plt.subplots()
+		ax.imshow(im, origin='upper',cmap='gray')
+		for c in circs:
+			ax.add_patch(c)
 
-	for l in lines:
-		ax.plot( l[0],l[1],alpha=0.7,color='magenta')
-	ax.set_xlim([0,640])
-	ax.set_ylim([0,480])
+		for l in lines:
+			ax.plot( l[0],l[1],alpha=0.2,color='gray')
+		ax.set_xlim([0,480])
+		ax.set_ylim([0,640])
 
-	plt.show()
+		plt.show()
+	return circs, lines
 
 #def lambert()
 
@@ -163,7 +203,7 @@ if __name__ == "__main__":
 
 
 	altaz_grid(im)
-	radec_grid(im, '2018-03-26T08:18:32.410')
+	#radec_grid(im, '2018-03-26T08:18:32.410')
 
 
 
