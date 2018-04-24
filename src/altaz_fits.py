@@ -34,11 +34,13 @@ def get_time(header):
     return t
 
 def alt_radius(coords):
+    #TODO: check/verify input type
     #calculates distance from defined image center to x, y coordinate pair
     delta_x = abs(xyimgcenter[0] - coords[0])
     delta_y = abs(xyimgcenter[1] - coords[1])
     radius = np.sqrt(delta_x**2. + delta_y**2.)
-    return radius #magnitude in pixels
+    return radius #magnitude in pixel
+
 
 def get_angle(line2D):
     #calculates angle between +x-axis and a line object from
@@ -58,6 +60,12 @@ def altaz_to_xy(alt, az, imgcenter=(320., 240.), pxpdeg=-3.3, b=0., az_rot = 0.)
     y_star = imgcenter[1] + ((90. - alt)*pxpdeg + b)*np.sin(np.deg2rad((az + az_rot)*1.00))
     return x_star, y_star
 
+def heck( xy1, xy2 ):
+
+    delta_x = abs(xy2[0] - xy1[0])
+    delta_y = abs(xy2[1] - xy1[1])
+    radius = np.sqrt(delta_x**2. + delta_y**2.)
+    return radius #magnitude in pixel
 
 
 ########################################################################################################################
@@ -66,7 +74,7 @@ def altaz_to_xy(alt, az, imgcenter=(320., 240.), pxpdeg=-3.3, b=0., az_rot = 0.)
 VAO = EarthLocation(lat=41.6611*u.deg, lon=-91.5302*u.deg, height=200*u.m)
 
 #center of CCD is 320, 240
-xyimgcenter = (328, 243)    #TODO: implement monte carlo for choosing best image center
+xyimgcenter = (328, 243)    #TODO: implement monte carlo for choosing best image center?
 
 
 
@@ -101,7 +109,7 @@ starxy = [ ['sirius', (518, 337)],
 
 
 #Sets axes for plotting figures
-colmap=plt.get_cmap('gray')    #colormap of fits image
+colmap=plt.get_cmap('viridis')    #colormap of fits image
 fig = plt.gcf()
 fig.set_size_inches(9,6)
 ax = fig.gca()
@@ -184,12 +192,13 @@ print('pixaz (deg): ', pixelazs)
 
 ################################################### CURVE FITTING ######################################################
 
-#TODO: Convert to a function if convinient
+#TODO: Convert to a function
 poptAlt, pcovAlt = curve_fit(fit_func, altitudes2,  pixelalts)    #Altitude Fitting
 poptAz, pcovAz = curve_fit(fit_func, azimuths2, pixelazs)    #Azimuth Fitting
 
-print(poptAlt, pcovAlt)
-print(poptAz, pcovAz)
+print('\nCurve Fitting')
+print('Altitude:\n', poptAlt, pcovAlt)
+print('Azimuth:\n', poptAz, pcovAz)
 print()
 
 
@@ -208,7 +217,16 @@ for i in range(0,10,1):
     ax.add_artist(patches.Circle(tau, 2, color='c', linestyle='-', fill=True))
 
 forwardDATA = np.asarray(forwardDATA)
-compDATA = np.asarray(compDATA)
+compDATA = np.asarray(compDATA) #TODO: find this data with centroid-ing stars -> see LAB 5: Reduction.py
+
+###################################################  ERROR FITS ########################################################
+
+print('forward fed data: \n', forwardDATA)
+print()
+print('computed data: \n', compDATA)
+print()
+diff_error = abs(compDATA - forwardDATA)
+print('difference\n', diff_error)
 
 
 
