@@ -60,13 +60,6 @@ def altaz_to_xy(alt, az, imgcenter=(320., 240.), pxpdeg=-3.3, b=0., az_rot = 0.)
     y_star = imgcenter[1] + ((90. - alt)*pxpdeg + b)*np.sin(np.deg2rad((az + az_rot)*1.00))
     return x_star, y_star
 
-def heck( xy1, xy2 ):
-
-    delta_x = abs(xy2[0] - xy1[0])
-    delta_y = abs(xy2[1] - xy1[1])
-    radius = np.sqrt(delta_x**2. + delta_y**2.)
-    return radius #magnitude in pixel
-
 
 ########################################################################################################################
 
