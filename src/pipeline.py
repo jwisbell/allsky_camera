@@ -4,7 +4,7 @@ import numpy as np
 from subprocess import call
 from argparse import ArgumentParser
 import matplotlib.pyplot as plt
-import astropy.fits.io as pyfits
+from astropy.io import fits as pyfits
 from matplotlib import gridspec
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 import astropy.units as u
@@ -37,7 +37,7 @@ def raw_fits(filename):
 
 def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
 	#open the image
-	head, im = rawFits(fname)
+	head, im = raw_fits(fname)
 	#im = np.rot90(im,1)
 
 	#store the utc time of the obervation, iowa city lat and long
@@ -146,7 +146,6 @@ def errfunc(p, *args):
 			else:
 				chi2 += np.sqrt( np.power( x-xc,2. ) + np.power(y-yc,2.) )
 		except:
-			#yc,xc = conversions.centroid(im,x,y,s=30, verbose=True)
 			continue
 	if ret_all:
 		return np.array(chi2) / len(sky_cat)
@@ -156,9 +155,8 @@ def errfunc(p, *args):
 
 
 
-
 def min_distances(fname):
-	head, im = rawFits(fname)
+	head, im = raw_fits(fname)
 	#im = np.rot90(im,1)
 
 	#store the utc time of the obervation, iowa city lat and long
@@ -172,7 +170,6 @@ def min_distances(fname):
 	x = np.arange(480)
 	y = np.arange(640)
 	xv,yv = np.meshgrid(x,y)
-	#p, cov = curve_fit(errfunc, (xv,yv), im, p0, args=(star_catalog, time))
 	res = leastsq( errfunc, p0, args=(im, star_catalog, lst,False),full_output=True )
 
 	print res[0]#,res[1]/(640*480.)
@@ -198,10 +195,10 @@ if __name__ == '__main__':
 	verbose = args.verbose
 	weather = args.weather
 
-	pipe(filename, grid=grid,points=points,names=names,verbose=verbose)
+	#pipe(filename, grid=grid,points=points,names=names,verbose=verbose)
 
-	#fname = './assets/clear_with_shield.FIT'
-	#min_distances('./assets/clear_with_shield.FIT')
+	fname = './assets/clear_with_shield.FIT'
+	min_distances('./assets/clear_with_shield.FIT')
 
 
 
