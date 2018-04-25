@@ -17,7 +17,7 @@ import conversions
 
 # -------  constants ---------
 HORIZON = 15
-MAG_LIM = 3.
+MAG_LIM = 4.
 
 
 #load the test image
@@ -38,7 +38,6 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
 	#store the utc time of the obervation, iowa city lat and long
 	time_str = head['date-obs']
 	#time = '2018-04-18T08:17:33.591'
-	print time_str
 	time = Time(time_str) - 1*u.hour
 	lst = conversions.utc_to_lst(time_str) - (1./24 * 360)
 
@@ -97,9 +96,9 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
 	for kk, obj in enumerate(sky_cat):
 		x = obj[1]; y = obj[2]
 		try:
-			yc,xc = conversions.centroid(np.power(im,2.),x,y,s=20, verbose=False)
+			yc,xc = conversions.centroid(np.power(im,1.),x,y,s=20, verbose=False)
 		except:
-			print
+			continue
 
 	#flag for image analysis -- edges, brightness, difference?
 
@@ -114,36 +113,41 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
 	plt.show()'''
 
 def errfunc(p, *args):
-	a,b,c,d = p
-	im, star_catalog, time = args
-	#star_catalog, time = args
+	a,b,c,d,e = p
+	im, star_catalog, time,ret_all = args
 	#using time, lat, and long, convert ra, dec to alt,az
 	#alt_az catalog
 	sky_cat = []
 	for kk,star in enumerate(star_catalog):
 		name, star_type, ra, dec, mag, epoch = star
 		ra = float(ra); dec = float(dec); mag = float(mag)
-
 		#convert ra, dec to alt, az 
 		alt, az = conversions.radec_to_altaz(ra, dec, time,debug=False)
 		if alt > HORIZON and mag < MAG_LIM:
 			#convert alt,az to x,y using Mason's fit
-			x,y = conversions.altaz_to_xy(alt, az, pxpdeg=a, b= b, imgcenter=(c,d))
-			print x, y
+			x,y = conversions.altaz_to_xy(alt, az, pxpdeg=a, b= b, imgcenter=(c,d), az_rot=e)
 			sky_cat.append( [name, x,y, alt, az, ra, dec, mag] )
 	
 	#compute the distance from each predicted star to the nearest centroid
 	chi2 = 0
+	if ret_all:
+		chi2 = []
 	for kk, obj in enumerate(sky_cat):
 		x = obj[1]; y = obj[2]
 		try:
-			yc,xc = conversions.centroid(im,x,y,s=30, verbose=False)
-			chi2 += np.power( x-xc,2. ) + np.power(y-yc,2.)
+			yc,xc = conversions.centroid(np.log(im),x,y,s=20, verbose=False)
+			if ret_all:
+				chi2.append(np.sqrt( np.power( x-xc,2. ) + np.power(y-yc,2.) )) 
+			else:
+				chi2 += np.sqrt( np.power( x-xc,2. ) + np.power(y-yc,2.) )
 		except:
-			print x,y
-			return 30
-	chi2 = chi2 / len(sky_cat)
-	return np.ones(4)*chi2
+			#yc,xc = conversions.centroid(im,x,y,s=30, verbose=True)
+			continue
+	if ret_all:
+		return np.array(chi2) / len(sky_cat)
+	else:
+		chi2 = chi2 / len(sky_cat)
+		return np.array([chi2,0,0,0,0])
 
 
 
@@ -153,29 +157,45 @@ def min_distances(fname):
 	#im = np.rot90(im,1)
 
 	#store the utc time of the obervation, iowa city lat and long
-	time = head['date-obs']
+	time_str = head['date-obs']
+	lst = conversions.utc_to_lst(time_str) - (1./24 * 360)
 	
 	#open the catalog
 	star_catalog = np.load('star_catalog.npy')
 
-	p0 = [-3.3, 0, 320., 240.]
+	p0 = [-3.29332406,  -9.5604571 , 316.51919006, 241.93552041, 4.2]
 	x = np.arange(480)
 	y = np.arange(640)
 	xv,yv = np.meshgrid(x,y)
 	#p, cov = curve_fit(errfunc, (xv,yv), im, p0, args=(star_catalog, time))
-	res = leastsq( errfunc, p0, args=(im,star_catalog, time) )
+	res = leastsq( errfunc, p0, args=(im, star_catalog, lst,False),full_output=True )
 
-	print res
-
+	print res[0]#,res[1]/(640*480.)
+	var = errfunc(res[0],im, star_catalog, lst,False)[0]
+	print var
+	#TODO revisit the mean of the distances once the hardware is complete
 	
 
-
-
-
 if __name__ == '__main__':
-	fname = './assets/075318.FIT'
+	parser = ArgumentParser(description='Generate timelapse for given date')
+	parser.add_argument('-g', '--grid', type=bool, default=True,help='Insert grid', required=False)
+	parser.add_argument('-p', '--points', type=bool, default=True, help='Label Objects', required=False)
+	parser.add_argument('-n', '--names', type=bool, default=True, help='names', required=False)
+	parser.add_argument('-v', '--verbose', type=bool, default=True, help='verbose output', required=False)
+	parser.add_argument('-f', '--filename', type=str, default="", help='filename', required=True)
+	parser.add_argument('-w', '--weather', type=bool, default=False, help='Weather plotting, default off', required=False)
+
+	args = parser.parse_args()
+	filename = args.filename
+	grid = args.grid
+	points = args.points
+	names = args.names
+	verbose = args.verbose
+	weather = args.weather
+
+	pipe(filename, grid=grid,points=points,names=names,verbose=verbose)
+
 	#fname = './assets/clear_with_shield.FIT'
-	pipe(fname, grid=True,points=False,names=True,verbose=True)
 	#min_distances('./assets/clear_with_shield.FIT')
 
 

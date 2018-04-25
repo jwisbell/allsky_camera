@@ -96,7 +96,9 @@ def altaz_to_radec(alt,az,time):
 	return np.degrees(RA), np.degrees(DEC)
 
 
-def altaz_to_xy(alt, az, imgcenter=(320., 240.), pxpdeg=-3.3, b=0., az_rot = 8.):
+def altaz_to_xy(alt, az, imgcenter=(316.51919006, 241.93552041), pxpdeg=-3.29332406, b=-9.5604571, az_rot = 8.):
+	#alt, az, imgcenter=(320., 240.), pxpdeg=-3.3, b=0., az_rot = 8.
+	#-3.29332406,  -9.5604571 , 316.51919006, 241.93552041
     #generalized transformation from Alt/Az (in degrees) to image x, y (in pixels)
     #pxperdeg found from altitude fitting, angleoffset from az fit (b/w x-axis and NORTH)
     x_star = imgcenter[0] + ((90. - alt)*pxpdeg + b)*np.cos(np.deg2rad((az + az_rot)*1.00)) + 10
@@ -127,7 +129,7 @@ def centroid(image, x,y,s, verbose=False):
 	xc = np.sum( diff_j*yvals) / np.sum(diff_j) 
 
 	if verbose:
-		print(xc,yc)
+		print(xc+y-s/2,yc+x-s/2)
 		fig = plt.figure()
 		plt.imshow(region,cmap='viridis',origin='lower')
 		plt.scatter(xc,yc)
@@ -137,7 +139,7 @@ def centroid(image, x,y,s, verbose=False):
 
 
 
-def altaz_grid(im, spacing=15, verbose=False,alph=0.4,north=8):
+def altaz_grid(im, spacing=15, verbose=False,alph=0.4,north=4):
 	#spacing in degrees
 	color = 'red'
 	alts = np.arange(0,85+spacing,spacing)
