@@ -140,6 +140,7 @@ def centroid(image, x,y,s, verbose=False):
 
 
 def altaz_grid(im, spacing=15, verbose=False,alph=0.4,north=4):
+	#DONT PLOT INSIDE THE CENTRAL RING
 	#spacing in degrees
 	color = 'red'
 	alts = np.arange(0,85+spacing,spacing)
@@ -152,13 +153,13 @@ def altaz_grid(im, spacing=15, verbose=False,alph=0.4,north=4):
 	for radius in np.sqrt( np.power(x-320,2.) + np.power(y-240,2.)):
 		c = Circle( (480/2,640/2),radius=radius,fc='none',ec=color,alpha=alph)
 		circs.append(c)
-
+	r = np.min(np.sqrt( np.power(x-320,2.) + np.power(y-240,2.)) )
 	#make the lines
 	length=np.max( np.sqrt( np.power(x-320,2.) + np.power(y-240,2.)) )
 	lines = []
 	azs = np.arange(0+north,360+north,30)
 	for az in azs:
-		lines.append(  ([480/2, 480/2+length*np.cos(np.radians(az))], [640/2,640/2+length*np.sin(np.radians(az))]) )
+		lines.append(  ([480/2+r*np.cos(np.radians(az)), 480/2+length*np.cos(np.radians(az))], [640/2+r*np.sin(np.radians(az)),640/2+length*np.sin(np.radians(az))]) )
 
 	#do the plotting
 	if verbose:
@@ -174,8 +175,6 @@ def altaz_grid(im, spacing=15, verbose=False,alph=0.4,north=4):
 
 		plt.show()
 	return circs, lines
-
-#def lambert()
 
 
 def radec_grid(im,time, spacing=10,lat = 41.661):

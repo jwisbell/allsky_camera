@@ -17,7 +17,7 @@ import conversions
 
 # -------  constants ---------
 HORIZON = 15
-MAG_LIM = 4.
+MAG_LIM = 3.
 
 
 #load the test image
@@ -69,7 +69,7 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
 			sky_cat.append( [name, x,y, alt, az, ra, dec, mag] )
 
 
-	fig, ax = plt.subplots(figsize=(4,6))
+	fig, ax = plt.subplots(figsize=(10,12))
 	ax.imshow(1*np.sqrt(im), origin='lower',cmap='gray',vmin=.4*np.max(np.sqrt(im)), vmax=1*np.max(np.sqrt(im)))
 	#plot objects with names
 	for kk, obj in enumerate(sky_cat):
@@ -77,7 +77,7 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
 		if points:
 			ax.scatter(y,x,marker='*',color='cyan',alpha=0.5)
 		if names:
-			ax.text(y,x,name, fontsize=5,alpha=0.9, color='gray')
+			ax.text(y,x,name, fontsize=9,alpha=0.9, color='gray')
 
 	
 	#plot alt,az grid (flag for ra,dec grid)
@@ -94,6 +94,10 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
 	ax.set_ylim([0,640])
 	plt.axis('off')
 	fig.subplots_adjust(left=0,right=1,bottom=0,top=1)
+	#save as a new file
+	outname = fname.split('.FIT')[0] + '.jpg'
+	if save:
+		plt.savefig(outname, bbinches='tight')
 	if verbose:
 		plt.show()
 
@@ -106,16 +110,7 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
 			continue
 
 	#flag for image analysis -- edges, brightness, difference?
-
-	#save as a new file
-	if save:
-		plt.savefig(outname, bbinches='tight')
-
-	'''plt.close()
-	fig,ax = plt.subplots(2)
-	ax[0].scatter([x[3] for x in sky_cat], [x[5] for x in sky_cat])
-	ax[1].scatter([x[4] for x in sky_cat], [x[6] for x in sky_cat])
-	plt.show()'''
+	return outname
 
 def errfunc(p, *args):
 	a,b,c,d,e = p
@@ -153,8 +148,6 @@ def errfunc(p, *args):
 		chi2 = chi2 / len(sky_cat)
 		return np.array([chi2,0,0,0,0])
 
-
-
 def min_distances(fname):
 	head, im = raw_fits(fname)
 	#im = np.rot90(im,1)
@@ -178,14 +171,24 @@ def min_distances(fname):
 	#TODO revisit the mean of the distances once the hardware is complete
 	
 
+def make_gif(file_list,outname):
+	import imageio
+	images = []
+	for filename in file_list:
+	    images.append(imageio.imread(filename))
+	imageio.mimsave(outname, images)
+
+
 if __name__ == '__main__':
-	parser = ArgumentParser(description='Generate timelapse for given date')
+	parser = ArgumentParser(description='Generate overlay jpg for given date')
 	parser.add_argument('-g', '--grid', type=bool, default=True,help='Insert grid', required=False)
-	parser.add_argument('-p', '--points', type=bool, default=True, help='Label Objects', required=False)
+	parser.add_argument('-p', '--points', type=bool, default=False, help='Label Objects', required=False)
 	parser.add_argument('-n', '--names', type=bool, default=True, help='names', required=False)
-	parser.add_argument('-v', '--verbose', type=bool, default=True, help='verbose output', required=False)
-	parser.add_argument('-f', '--filename', type=str, default="", help='filename', required=True)
+	parser.add_argument('-v', '--verbose', type=bool, default=False, help='verbose output', required=False)
 	parser.add_argument('-w', '--weather', type=bool, default=False, help='Weather plotting, default off', required=False)
+	parser.add_argument('-m', '--many_files', type=bool, default=False, help='Given a folder, will generate a gif', required=False)
+	parser.add_argument('-f', '--filename', type=str, default="", help='filename', required=True)
+
 
 	args = parser.parse_args()
 	filename = args.filename
@@ -194,11 +197,24 @@ if __name__ == '__main__':
 	names = args.names
 	verbose = args.verbose
 	weather = args.weather
+	many = args.many_files
 
-	#pipe(filename, grid=grid,points=points,names=names,verbose=verbose)
+	if not many:
+		pipe(filename, grid=grid,points=points,names=names,verbose=verbose,save=True)
+	else:
+		import os
+		ims = []
+		files = os.listdir(filename)
+		for f in files:
+			if len(f.split('.FIT')) > 1:
+				print (filename+f)
+				ims.append( pipe(filename+f, grid=grid,points=points,names=names,verbose=verbose,save=True) )
 
-	fname = './assets/clear_with_shield.FIT'
-	min_distances('./assets/clear_with_shield.FIT')
+		#make a gif from a list of jpgs
+		make_gif(ims,filename+'/night.gif')
+
+	#fname = './assets/clear_with_shield.FIT'
+	#min_distances('./assets/clear_with_shield.FIT')
 
 
 
