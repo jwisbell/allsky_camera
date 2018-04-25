@@ -4,7 +4,7 @@ import numpy as np
 from subprocess import call
 from argparse import ArgumentParser
 import matplotlib.pyplot as plt
-from astropy.io import fits
+import astropy.fits.io as pyfits
 from matplotlib import gridspec
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 import astropy.units as u
@@ -21,12 +21,17 @@ MAG_LIM = 4.
 
 
 #load the test image
-def rawFits(filename):
-    f = fits.open(filename)
-    h = f[0].header
-    d = f[0].data
-    f.close()
-    return h, d
+def raw_fits(filename):
+    #returns FITS header and data
+    if filename.lower().endswith(('.fits', '.fit')):
+        f = pyfits.open(filename)
+        h = f[0].header
+        d = f[0].data
+        f.close()
+        return h, d
+    else:
+        raise Exception('Invalid Filetype')
+
 
 #------------ THE ALLSKY PIPELINE ------------
 
