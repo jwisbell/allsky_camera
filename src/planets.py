@@ -13,20 +13,26 @@ def raw_fits(filename):
     else:
         raise Exception('Invalid Filetype')
 
-head, im          = raw_fits('025007.fit')
-time_str          = head['date-obs']
-DateOfObservation = (time_str.replace('-','/')).replace('T',' ')
-print(DateOfObservation)
+def mk_cat(fname):
+    head, im          = raw_fits(fname)
+    time_str          = head['date-obs']
+    DateOfObservation = (time_str.replace('-','/')).replace('T',' ')
+    icity = ephem.Observer()
+    icity.lon = '-91.5302'
+    icity.lat = '41.6611'
+    icity.elevation = 100
+    icity.date = DateOfObservation
 
-ListOfPlanets = [ephem.Mercury(), ephem.Venus(), ephem.Mars(), ephem.Jupiter(), ephem.Saturn(), ephem.Uranus(), ephem.Neptune()]
-PlanetCatalog = []
+    ListOfPlanets = [ephem.Mercury(icity), ephem.Venus(icity), ephem.Mars(icity), ephem.Jupiter(icity), ephem.Saturn(icity), ephem.Uranus(icity), ephem.Neptune(icity)]
+    PlanetCatalog = []
 
-for i in ListOfPlanets:
-	Planet = i
-	Planet.compute(str(DateOfObservation))
-	PlanetInfo = [str(Planet.name), 'Planet', str(Planet.ra), str(Planet.dec), str(Planet.mag), '2000']
-	PlanetCatalog.append(PlanetInfo)
+    for i in ListOfPlanets:
+    	Planet = i
+    	#Planet.compute(str(DateOfObservation))
+        #p = Planet(icity)
+    	PlanetInfo = [str(Planet.name), 'Planet', str(Planet.ra), str(Planet.dec), str(Planet.mag), '2000']
+    	PlanetCatalog.append(PlanetInfo)
 
-PlanetCatalog = np.array(PlanetCatalog)
+    PlanetCatalog = np.array(PlanetCatalog)
 
-print(PlanetCatalog)
+    return PlanetCatalog

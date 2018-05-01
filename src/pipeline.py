@@ -13,6 +13,8 @@ from scipy.optimize import curve_fit, leastsq, least_squares
 
 #-------------------
 import conversions
+import planets
+import weather
 
 
 # -------  constants ---------
@@ -33,23 +35,63 @@ def raw_fits(filename):
         raise Exception('Invalid Filetype')
 
 
+#---------- WEATHER STATS -----------------
+def weather_graph(im, time,time_str):
+	b = weather.brightness(-1*im)
+	e = weather.sobel(-1*im,verbose=False)
+	#load the previous points
+	try:
+		edges = np.load('./weather_e.npy')
+		edges = np.append(edges, e)
+		brights = np.load('./weather_b.npy')
+		brights = np.append(brights, b)
+		times = np.load('./weather_t.npy')
+		times = np.append(times, time)
+		time_labs = np.load('./weather_l.npy')
+		time_labs = np.append(time_labs, time_str)
+	except:
+		edges = [e]
+		brights = [b]
+		times = [time]
+		time_labs = [time_str]
+	
+	if len(edges) >= (12*20):
+		edges = np.delete(edges,0)
+		brights = np.delete(brights,0)
+		times = np.delete(times,0)
+		time_labs = np.delete(time_labs,0)
+	
+	fig,ax = plt.subplots()
+
+	ax.plot(times, brights, 'b--',label='Brightness')
+	ax.plot(times, edges, 'r--',label='Edge Value')
+	ax.set_xticks(times[::5])
+	ax.set_xticklabels(time_labs[::5],rotation='vertical')
+	plt.savefig('./testing_weather.png',bbinches='tight')
+	np.save('./weather_e.npy',edges)
+	np.save('./weather_b.npy',brights)
+	np.save('./weather_t.npy',times)
+	np.save('./weather_l.npy',time_labs)
+	plt.close()
+
+
+
 #------------ THE ALLSKY PIPELINE ------------
 
-def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
+def pipe(fname, verbose=True, grid=True, names=True, points=False, do_weather=True, save=False):
 	#open the image
 	head, im = raw_fits(fname)
 	#im = np.rot90(im,1)
 
 	#store the utc time of the obervation, iowa city lat and long
 	time_str = head['date-obs']
-	#time = '2018-04-18T08:17:33.591'
+	print time_str
 	time = Time(time_str) - 1*u.hour
 	lst = conversions.utc_to_lst(time_str) - (1./24 * 360)
 
 	#open the catalog
 	star_catalog = np.load('star_catalog.npy')
-	#print star_catalog[0]
-	#iowa_city = EarthLocation(lat=41.6611*u.deg, lon=-1*91.5302*u.deg,height=50.*u.m)
+	planet_catalog = planets.mk_cat(fname)
 
 	#using time, lat, and long, convert ra, dec to alt,az
 	#alt_az catalog
@@ -57,13 +99,19 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
 	for kk,star in enumerate(star_catalog):
 		name, star_type, ra, dec, mag, epoch = star
 		ra = float(ra); dec = float(dec); mag = float(mag)
-		#c = SkyCoord(ra, dec, unit='deg')
-		#obj_altaz = c.transform_to(AltAz(obstime=time, location=iowa_city))
-		#alt = float("{0.alt:.3}".format(obj_altaz).split()[0]); az = float("{0.az:.3}".format(obj_altaz).split()[0]) 
-
 		#convert ra, dec to alt, az 
 		alt, az = conversions.radec_to_altaz(ra, dec, lst,debug=False)
 		if alt > HORIZON and mag < MAG_LIM:
+			#convert alt,az to x,y using Mason's fit
+			x,y = conversions.altaz_to_xy(alt, az)
+			sky_cat.append( [name, x,y, alt, az, ra, dec, mag] )
+
+	for kk,planet in enumerate(planet_catalog):
+		name, star_type, ra, dec, mag, epoch = planet
+		ra = conversions.sex_to_deg(ra,ra=True); dec = conversions.sex_to_deg(dec, ra=False) ; mag = float(mag)
+		#convert ra, dec to alt, az 
+		alt, az = conversions.radec_to_altaz(ra, dec, lst,debug=False)
+		if alt > HORIZON: 
 			#convert alt,az to x,y using Mason's fit
 			x,y = conversions.altaz_to_xy(alt, az)
 			sky_cat.append( [name, x,y, alt, az, ra, dec, mag] )
@@ -77,18 +125,48 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
 		if points:
 			ax.scatter(y,x,marker='*',color='cyan',alpha=0.5)
 		if names:
-			ax.text(y,x,name, fontsize=9,alpha=0.9, color='gray')
+			ax.text(y,x,name, fontsize=9.5,alpha=0.95, color='gray')
 
 	
 	#plot alt,az grid (flag for ra,dec grid)
+	do_altaz = True
+	do_radec = True
 	if grid:
-		circs, lines = conversions.altaz_grid(im, spacing=15, verbose=False)
-
-		for c in circs:
+		if do_altaz:
+			circs, lines = conversions.altaz_grid(im, spacing=15, verbose=False)
+			for c in circs:
 				ax.add_patch(c)
+			for l in lines:
+				ax.plot( l[0],l[1],alpha=0.2,color='red')
 
-		for l in lines:
-			ax.plot( l[0],l[1],alpha=0.2,color='red')
+		if do_radec:
+			color = 'dodgerblue'
+			ra_spacings, dec_spacings, ra_filler = conversions.radec_grid(im, lst)
+			ralabels = []; dec_labels = []
+			for c in ra_spacings:
+				imcoords_x, imcoords_y,s = c
+				ax.plot(imcoords_y, imcoords_x, c=color, alpha=0.2)
+				ralabels.append(s)
+				ax.text(imcoords_y[0]*1., imcoords_x[0]*1.07, '%s'%(s) ,color='gray')
+			for c in dec_spacings:
+				imcoords_x, imcoords_y, s = c
+				ax.plot(imcoords_y, imcoords_x, c=color, alpha=0.2)
+				dec_labels.append(s)
+				#ax.text(imcoords_y[0], imcoords_x[0], str(s))
+			for c in ra_filler:
+				imcoords_x, imcoords_y,s = c
+				ax.plot(imcoords_y, imcoords_x, c=color, alpha=0.1)
+				#ax.text(imcoords_y[-1], imcoords_x[-1], s)
+
+			angles = np.linspace(0,350,len(ralabels))
+			offset = 12
+			r = 290
+			for kk in range(len(ralabels)):
+				a = angles[kk]+ offset
+				#ax.text(r*np.cos( np.deg2rad(a)) + 480/2, r*np.sin(np.deg2rad(a)) + 640/2,'%.1f'%(ralabels[kk]),color='white',alpha=0.)
+		
+
+		
 
 	ax.set_xlim([0,480])
 	ax.set_ylim([0,640])
@@ -110,6 +188,10 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, save=False):
 			continue
 
 	#flag for image analysis -- edges, brightness, difference?
+	if do_weather:
+		weather_graph(im, lst, time_str.split('T')[-1])
+
+	plt.close()
 	return outname
 
 def errfunc(p, *args):
@@ -180,7 +262,7 @@ def make_gif(file_list,outname):
 
 
 if __name__ == '__main__':
-	parser = ArgumentParser(description='Generate overlay jpg for given date')
+	'''parser = ArgumentParser(description='Generate overlay jpg for given date')
 	parser.add_argument('-g', '--grid', type=bool, default=True,help='Insert grid', required=False)
 	parser.add_argument('-p', '--points', type=bool, default=False, help='Label Objects', required=False)
 	parser.add_argument('-n', '--names', type=bool, default=True, help='names', required=False)
@@ -196,11 +278,11 @@ if __name__ == '__main__':
 	points = args.points
 	names = args.names
 	verbose = args.verbose
-	weather = args.weather
+	do_weather = args.weather
 	many = args.many_files
 
 	if not many:
-		pipe(filename, grid=grid,points=points,names=names,verbose=verbose,save=True)
+		pipe(filename, grid=grid,points=points,names=names,verbose=verbose,do_weather=do_weather,save=True)
 	else:
 		import os
 		ims = []
@@ -208,13 +290,14 @@ if __name__ == '__main__':
 		for f in files:
 			if len(f.split('.FIT')) > 1:
 				print (filename+f)
-				ims.append( pipe(filename+f, grid=grid,points=points,names=names,verbose=verbose,save=True) )
+				ims.append( pipe(filename+f, grid=grid,points=points,names=names,verbose=verbose,do_weather=do_weather,save=True) )
 
 		#make a gif from a list of jpgs
 		make_gif(ims,filename+'/night.gif')
 
 	#fname = './assets/clear_with_shield.FIT'
-	#min_distances('./assets/clear_with_shield.FIT')
+	'''
+	min_distances('./assets/clear_with_shield.FIT')
 
 
 

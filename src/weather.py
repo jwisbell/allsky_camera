@@ -51,12 +51,13 @@ def sobel(im,verbose=False,save=False):
 	Theta = np.arctan2(gy,gx)
 
 	#keep a threshold value of edges???
-	new = np.copy(G)
-	new[G > 0.5] = 10
-	num_edges = len(new[new > 0.5])
+	new = np.copy(G)/np.max(G)
+	new[G/np.max(G) > .02] = .5
+	num_edges = len(new[new > 0.1])
 	print num_edges/(640*480.) * 100, '% Edges'
 
 	if verbose:
+		print np.mean(new), np.max(new), np.min(new)
 		#show the detected edges
 		fig=plt.figure(figsize=(15,3))#,ax = plt.subplots(1,3,sharey=True)
 		gs = gridspec.GridSpec(1, 3) #height_ratios=[3,1]) 
@@ -68,7 +69,7 @@ def sobel(im,verbose=False,save=False):
 		ax[0].set_title('Original Image')
 		ax[1].imshow(np.rot90(new)*-1,origin='lower',cmap='gray')
 		ax[1].set_title('Edges (Gradient Magnitude)')
-		ax[2].imshow(np.rot90(Theta),origin='lower',cmap='viridis')
+		ax[2].imshow(np.rot90(G),origin='lower',cmap='viridis')
 		ax[2].set_title('Edges (Gradient Direction)')
 		#ax[0,1].quiver(gx[::5,::5],gy[::5,::5])
 		ax[0].axis('off')
@@ -85,6 +86,7 @@ def sobel(im,verbose=False,save=False):
 		plt.savefig('edges_cloudy.png',bbinches='tight')
 		plt.axis('off')
 		plt.close()
+	return num_edges/(640*480.) * 100
 
 if __name__ == '__main__':
 	h, TEST = rawFits('./assets/tesCurrentImage.FIT')
