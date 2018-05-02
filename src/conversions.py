@@ -5,6 +5,9 @@ from astropy.io import fits
 from astropy.time import Time
 from matplotlib.patches import Circle
 import matplotlib.image as mpimg
+from scipy.interpolate import interp1d
+from scipy.interpolate import spline
+
 #from mpl_toolkits.basemap import Basemap
 
 lat = 41.6611 #North
@@ -139,7 +142,7 @@ def centroid(image, x,y,s, verbose=False):
 
 
 
-def altaz_grid(im, spacing=15, verbose=False,alph=0.4,north=4):
+def altaz_grid(im, spacing=15, verbose=False,alph=0.4,north=3.9):
 	#DONT PLOT INSIDE THE CENTRAL RING
 	#spacing in degrees
 	color = 'red'
@@ -176,30 +179,110 @@ def altaz_grid(im, spacing=15, verbose=False,alph=0.4,north=4):
 		plt.show()
 	return circs, lines
 
+def ra_string(ra):
+	'''Returns a hh:mm:ss.ddd string given ra in decimal degrees.'''
+	if ra >= 360:
+		ra = ra - 360
+	h = ra/360 * 24
+	hstring = '%i'%(int(h))
+	if len(hstring) == 1:
+		hstring = '0'+hstring
+	m = (h - int(h)) * 60
+	mstring = '%i'%(int(m))
+	if len(mstring) == 1:
+		mstring = '0'+mstring
+	s = (m - int(m)) * 60.
+	secstring = '%.1f'%(s)
+	if len(secstring.split('.')[0]) == 1:
+		secstring = '0' + secstring
+	return '%s:%s:%s'%(hstring,mstring,secstring)
+def dec_string(dec):
+	'''Returns a dd:mm:ss.ss string given dec in decimal degrees.'''
+	h = dec#ra/360 * 24
+	hstring = '%i'%(int(h))
+	if len(hstring) == 1:
+		hstring = '0'+hstring
+	m = (h - int(h)) * 60
+	mstring = '%i'%(abs(int(m)))
+	if len(mstring) == 1:
+		mstring = '0'+mstring
+	s = (m - int(m)) * 60.
+	secstring = '%.3f'%(abs(s))
+	if len(secstring.split('.')[0]) == 1:
+		secstring = '0' + secstring
+	return '%s:%s:%s'%(hstring,mstring,secstring)
 
-def radec_grid(im,time, spacing=10,lat = 41.661):
+def radec_grid(im,time, spacing=10,lat = 41.661,verbose=False):
 	#time is lst in degrees
 	ncp = lat
 	meridian = time#utc_to_lst(time)
+	r = 280
+	yc = 480/2; xc = 640/2
+	offset_x = 5
+	offset_y = -5
 
-	coords = []
-	for ra in np.arange(0,15,15):
-		for dec in np.arange(0,90,15):
-			coords.append([meridian,dec])
-	im_coords = []
-	for c in coords:
-		im_coords.append( altaz_to_xy( *radec_to_altaz(c[0],c[1],time)) )
-
-	print im_coords
+	ra_spacings = []
+	dec_spacings = []
+	ra_filler = []
 
 	fig, ax = plt.subplots()
 	ax.imshow(im, origin='lower')
 
-	for c in im_coords:
-		x,y = c
-		ax.scatter(640/2 + x, 480/2 + y)
+	for ra in np.arange(time-180,time+180,15):
+		coords = []
+		for dec in np.arange(-90+lat,90,10):
+			coords.append([ra,dec])
+		im_coords_x = []
+		im_coords_y = []
+		for c in coords:
+			x,y = altaz_to_xy( *radec_to_altaz(c[0],c[1],time)) 
+			if not np.isnan(x):
+				if np.sqrt( (x-xc)**2 + (y-yc)**2 ) <= r:
+					im_coords_x.append(x + offset_x)
+					im_coords_y.append(y + offset_y)
+		ax.plot(im_coords_y,im_coords_x,alpha=0.2,c='red')
+		ra_spacings.append([im_coords_x, im_coords_y,ra_string(ra)])
 
-	plt.show()
+	for ra in [meridian, meridian+180]:
+		coords = []
+		for dec in np.arange(-90+lat,90,10):
+			coords.append([meridian,dec])
+		im_coords_x = []
+		im_coords_y = []
+		for c in coords:
+			x,y = altaz_to_xy( *radec_to_altaz(c[0],c[1],time)) 
+			if not np.isnan(x):
+				if np.sqrt( (x-xc)**2 + (y-yc)**2 ) <= r:
+					im_coords_x.append(x + offset_x)
+					im_coords_y.append(y + offset_y)
+
+		ax.plot( [im_coords_y[0],im_coords_y[-1]],[im_coords_x[0], im_coords_x[-1]],alpha=0.1,c='red')
+		ra_filler.append([im_coords_x, im_coords_y,dec])
+
+
+	for dec in np.arange(-90+lat,90,10):
+		coords = []
+		for ra in np.arange(time-180,time+180+15,15):
+			coords.append([ra,dec])
+		im_coords_x = []
+		im_coords_y = []
+		for c in coords:
+			x,y = altaz_to_xy( *radec_to_altaz(c[0],c[1],time))
+			if not np.isnan(x):
+				if np.sqrt( (x-xc)**2 + (y-yc)**2 ) <= r:
+					im_coords_x.append(x + offset_x)
+					im_coords_y.append(y + offset_y)
+
+		ax.plot(im_coords_y,im_coords_x,alpha=0.2,c='red')
+		dec_spacings.append([im_coords_x, im_coords_y,meridian])
+
+	if verbose:
+		ax.set_xlim([0,480])
+		ax.set_ylim([0,640])
+		plt.show()
+	plt.close()
+
+	return ra_spacings, dec_spacings, ra_filler
 
 	
 
