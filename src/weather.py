@@ -34,8 +34,8 @@ def image_stack(im_list,verbose=False):
 
 def brightness(im, verbose=False):
 	#function to measure the mean log intensity of an image for cloud cover measurements
-	NIGHT = 0.
-	DAY = 1.
+	NIGHT = 3.51
+	DAY = 4.2
 	brightness = (np.log10(np.nanmean(-1*im)) - NIGHT) / DAY
 	return brightness
 
@@ -54,7 +54,7 @@ def sobel(im,verbose=False,save=False):
 	new = np.copy(G)/np.max(G)
 	new[G/np.max(G) > .02] = .5
 	num_edges = len(new[new > 0.1])
-	print num_edges/(640*480.) * 100, '% Edges'
+	#print num_edges/(640*480.) * 100, '% Edges'
 
 	if verbose:
 		print np.mean(new), np.max(new), np.min(new)
@@ -86,7 +86,7 @@ def sobel(im,verbose=False,save=False):
 		plt.savefig('edges_cloudy.png',bbinches='tight')
 		plt.axis('off')
 		plt.close()
-	return num_edges/(640*480.) * 100
+	return num_edges/(640*480.) / .14
 
 if __name__ == '__main__':
 	h, TEST = rawFits('./assets/tesCurrentImage.FIT')

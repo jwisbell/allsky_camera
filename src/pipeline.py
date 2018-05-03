@@ -39,6 +39,7 @@ def raw_fits(filename):
 def weather_graph(im, time,time_str):
 	b = weather.brightness(-1*im)
 	e = weather.sobel(-1*im,verbose=False)
+
 	#load the previous points
 	try:
 		edges = np.load('./weather_e.npy')
@@ -49,6 +50,8 @@ def weather_graph(im, time,time_str):
 		times = np.append(times, time)
 		time_labs = np.load('./weather_l.npy')
 		time_labs = np.append(time_labs, time_str)
+		#print 'brightness:', np.min(brights), np.max(brights)
+		#print 'edges', np.min(edges), np.max(edges)
 	except:
 		edges = [e]
 		brights = [b]
@@ -61,13 +64,12 @@ def weather_graph(im, time,time_str):
 		times = np.delete(times,0)
 		time_labs = np.delete(time_labs,0)
 	
-	fig,ax = plt.subplots()
-
+	fig,ax = plt.subplots(figsize=(6,8))
 	ax.plot(times, brights, 'b--',label='Brightness')
-	ax.plot(times, edges, 'r--',label='Edge Value')
+	ax.plot(times, edges, 'r--',label='Edge Percentage (Cloud Cover)')
 	ax.set_xticks(times[::5])
 	ax.set_xticklabels(time_labs[::5],rotation='vertical')
-	plt.savefig('./testing_weather.png',bbinches='tight')
+	plt.savefig('./testing_weather.png')#,bbinches='tight')
 	np.save('./weather_e.npy',edges)
 	np.save('./weather_b.npy',brights)
 	np.save('./weather_t.npy',times)
@@ -85,7 +87,7 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, do_weather=Tr
 
 	#store the utc time of the obervation, iowa city lat and long
 	time_str = head['date-obs']
-	print time_str
+	#print time_str
 	time = Time(time_str) - 1*u.hour
 	lst = conversions.utc_to_lst(time_str) - (1./24 * 360)
 
@@ -116,7 +118,6 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, do_weather=Tr
 			x,y = conversions.altaz_to_xy(alt, az)
 			sky_cat.append( [name, x,y, alt, az, ra, dec, mag] )
 
-
 	fig, ax = plt.subplots(figsize=(10,12))
 	ax.imshow(1*np.sqrt(im), origin='lower',cmap='gray',vmin=.4*np.max(np.sqrt(im)), vmax=1*np.max(np.sqrt(im)))
 	#plot objects with names
@@ -125,11 +126,12 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, do_weather=Tr
 		if points:
 			ax.scatter(y,x,marker='*',color='cyan',alpha=0.5)
 		if names:
-			ax.text(y,x,name, fontsize=9.5,alpha=0.95, color='gray')
+			if y < 460:
+				ax.text(y,x,name, fontsize=8,alpha=0.95, color='gray')
 
 	
 	#plot alt,az grid (flag for ra,dec grid)
-	do_altaz = True
+	do_altaz = False
 	do_radec = True
 	if grid:
 		if do_altaz:
@@ -137,7 +139,7 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, do_weather=Tr
 			for c in circs:
 				ax.add_patch(c)
 			for l in lines:
-				ax.plot( l[0],l[1],alpha=0.2,color='red')
+				ax.plot( l[0],l[1],alpha=0.35,color='red')
 
 		if do_radec:
 			color = 'dodgerblue'
@@ -145,17 +147,28 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, do_weather=Tr
 			ralabels = []; dec_labels = []
 			for c in ra_spacings:
 				imcoords_x, imcoords_y,s = c
-				ax.plot(imcoords_y, imcoords_x, c=color, alpha=0.2)
+				ax.plot(imcoords_y, imcoords_x, c=color, alpha=0.35)
 				ralabels.append(s)
-				ax.text(imcoords_y[0]*1., imcoords_x[0]*1.07, '%s'%(s) ,color='gray')
+
+				if imcoords_y[0]*1. < 460 and  imcoords_y[0]*1. > 5:
+					if imcoords_x[0]*1.07 < 320:
+						if imcoords_y[0] < 240:
+							imcoords_y[0] -= 15
+						if imcoords_y[0]*.99 > 210 and imcoords_y[0]*.99 < 300:
+							ax.text(imcoords_y[0]*.99, imcoords_x[0]*1.1 - 50, '%s'%(s) ,color='gray')
+						else:
+							ax.text(imcoords_y[0]*.99, imcoords_x[0]*1.1 - 30, '%s'%(s) ,color='gray')
+					else:
+						ax.text(imcoords_y[0]*1., imcoords_x[0]*1.07, '%s'%(s) ,color='gray')
+
 			for c in dec_spacings:
 				imcoords_x, imcoords_y, s = c
-				ax.plot(imcoords_y, imcoords_x, c=color, alpha=0.2)
+				ax.plot(imcoords_y, imcoords_x, c=color, alpha=0.35)
 				dec_labels.append(s)
 				#ax.text(imcoords_y[0], imcoords_x[0], str(s))
 			for c in ra_filler:
 				imcoords_x, imcoords_y,s = c
-				ax.plot(imcoords_y, imcoords_x, c=color, alpha=0.1)
+				ax.plot(imcoords_y, imcoords_x, c=color, alpha=0.15)
 				#ax.text(imcoords_y[-1], imcoords_x[-1], s)
 
 			angles = np.linspace(0,350,len(ralabels))
@@ -176,6 +189,7 @@ def pipe(fname, verbose=True, grid=True, names=True, points=False, do_weather=Tr
 	outname = fname.split('.FIT')[0] + '.jpg'
 	if save:
 		plt.savefig(outname, bbinches='tight')
+		call('convert %s -crop 890x1200+50+0 +repage %s'%(outname, outname),shell=True) 
 	if verbose:
 		plt.show()
 
@@ -255,14 +269,15 @@ def min_distances(fname):
 
 def make_gif(file_list,outname):
 	import imageio
+	from subprocess import call
 	images = []
 	for filename in file_list:
 	    images.append(imageio.imread(filename))
-	imageio.mimsave(outname, images)
+	imageio.mimsave(outname, images,quality=5)
 
 
 if __name__ == '__main__':
-	'''parser = ArgumentParser(description='Generate overlay jpg for given date')
+	parser = ArgumentParser(description='Generate overlay jpg for given date')
 	parser.add_argument('-g', '--grid', type=bool, default=True,help='Insert grid', required=False)
 	parser.add_argument('-p', '--points', type=bool, default=False, help='Label Objects', required=False)
 	parser.add_argument('-n', '--names', type=bool, default=True, help='names', required=False)
@@ -293,11 +308,10 @@ if __name__ == '__main__':
 				ims.append( pipe(filename+f, grid=grid,points=points,names=names,verbose=verbose,do_weather=do_weather,save=True) )
 
 		#make a gif from a list of jpgs
-		make_gif(ims,filename+'/night.gif')
+		make_gif(ims,filename+'/night.mp4')
 
 	#fname = './assets/clear_with_shield.FIT'
-	'''
-	min_distances('./assets/clear_with_shield.FIT')
+	#min_distances('./assets/clear_with_shield.FIT')
 
 
 

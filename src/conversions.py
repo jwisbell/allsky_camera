@@ -188,11 +188,11 @@ def ra_string(ra):
 	if len(hstring) == 1:
 		hstring = '0'+hstring
 	m = (h - int(h)) * 60
-	mstring = '%i'%(int(m))
+	mstring = '%i'%( abs(int(m)) )
 	if len(mstring) == 1:
 		mstring = '0'+mstring
 	s = (m - int(m)) * 60.
-	secstring = '%.1f'%(s)
+	secstring = '%.1f'%( np.absolute(s) )
 	if len(secstring.split('.')[0]) == 1:
 		secstring = '0' + secstring
 	return '%s:%s:%s'%(hstring,mstring,secstring)
@@ -216,7 +216,7 @@ def radec_grid(im,time, spacing=10,lat = 41.661,verbose=False):
 	#time is lst in degrees
 	ncp = lat
 	meridian = time#utc_to_lst(time)
-	r = 280
+	r = 283
 	yc = 480/2; xc = 640/2
 	offset_x = 5
 	offset_y = -5
