@@ -1,6 +1,8 @@
 import numpy as np
 from astropy.io import fits as pyfits
 import ephem
+import matplotlib
+matplotlib.use('Agg')
 
 def raw_fits(filename):
     #returns FITS header and data

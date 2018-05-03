@@ -3,6 +3,8 @@ import time
 import numpy as np
 from subprocess import call
 from argparse import ArgumentParser
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from astropy.io import fits as pyfits
 from matplotlib import gridspec

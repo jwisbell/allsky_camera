@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 
 def readfile(filename):
 	f = open(filename)
